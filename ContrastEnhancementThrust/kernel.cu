@@ -4,6 +4,20 @@
 #include <npp.h>
 #include <stdio.h>
 
+struct muldiv_functor
+{
+	float a;
+
+	muldiv_functor(int nConstant, int nNormalizer) { 
+		a = nConstant / nNormalizer; 
+	}
+
+	__host__ __device__
+		Npp8u operator()(const Npp8u& x) const
+	{
+		return a*x ;
+	}
+};
 
 //https://github.com/thrust/thrust/wiki/Quick-Start-Guide
 // Function Protypes.
@@ -11,20 +25,61 @@ thrust::host_vector<Npp8u>
 LoadPGM(char * sFileName, int & nWidth, int & nHeight, int & nMaxGray);
 
 void
-WritePGM(char * sFileName, Npp8u * pDst_Host, int nWidth, int nHeight, int nMaxGray);
+WritePGM(char * sFileName, thrust::host_vector<Npp8u> pDst_Host, int nWidth, int nHeight, int nMaxGray);
 
 int main()
 {
 	thrust::host_vector<Npp8u> pSrc_Host;
 	int   nWidth, nHeight, nMaxGray, nNormalizer;
-
 	std::cout << "THRUST VERSION" << std::endl;
 
 	// Load image to the host.
 	std::cout << "Load PGM file." << std::endl;
 	pSrc_Host = LoadPGM("lena_before.pgm", nWidth, nHeight, nMaxGray);
-	//pDst_Host = new Npp8u[nWidth * nHeight];
+
+	thrust::device_vector<Npp8u> pDst_Dev = pSrc_Host;
+	//Finding Minimum
+	int nMin = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(),257, thrust::minimum<int>());
 	
+	//Finding Maximum
+	int nMax = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(), 0, thrust::maximum<int>());
+	printf("The minimum value is %d, and the maximum value is %d.\n", nMin, nMax);
+
+	std::cout << "Subracting the minimum value." << std::endl;
+	thrust::for_each(pDst_Dev.begin(), pDst_Dev.end(), thrust::placeholders::_1 -= nMin);
+
+	/*for (thrust::device_vector<Npp8u>::iterator  i = pDst_Dev.begin(); i!= pDst_Dev.end(); i++)
+	{
+		*i -= nMin;
+	}*/
+	std::cout << "Subraction finished." << std::endl;
+
+	// Compute the optimal nConstant and nScaleFactor for integer operation see GTC 2013 Lab NPP.pptx for explanation
+	// I will prefer integer arithmetic, Instead of using 255.0f / (nMax_Host - nMin_Host) directly
+	int nScaleFactor = 0;
+	int nPower = 1;
+	while (nPower * 255.0f / (nMax - nMin) < 255.0f)
+	{
+		nScaleFactor++;
+		nPower *= 2;
+	}
+	Npp8u nConstant = static_cast<Npp8u>(255.0f / (nMax - nMin) * (nPower / 2));
+	
+	nNormalizer = pow(2, (nScaleFactor - 1));
+	
+	std::cout << "Multiplying by the constant, and dividing by normalizer." << std::endl;
+	thrust::transform(pDst_Dev.begin(), pDst_Dev.end(), pDst_Dev.begin(), muldiv_functor(nConstant, nNormalizer));
+
+	/*for (thrust::device_vector<Npp8u>::iterator i = pDst_Dev.begin(); i != pDst_Dev.end(); i++)
+	{
+		*i = static_cast<Npp8u>(*i * (nConstant/nNormalizer));
+	}*/
+	std::cout << "Multiplication, and division finished." << std::endl;
+	// Output the result image.
+	thrust::host_vector<Npp8u> pDst_Host=pDst_Dev;
+	std::cout << "Output the PGM file." << std::endl;
+	WritePGM("lena_after_GPUs.pgm", pDst_Host, nWidth, nHeight, nMaxGray);
+	getchar();
     return 0;
 }
 
@@ -62,19 +117,13 @@ LoadPGM(char * sFileName, int & nWidth, int & nHeight, int & nMaxGray)
 		{
 			pSrc_Host.push_back(fgetc(fInput));
 		}
-
-	for (thrust::host_vector<Npp8u>::iterator i = pSrc_Host.begin(); i != pSrc_Host.begin()+25 ; i++)
-	{
-		std::cout << "pSrc_Host[" << &i << "] = " << *i << std::endl;
-	}
 	fclose(fInput);
-	getchar();
 	return pSrc_Host;
 }
 
 // Write PGM image.
 void
-WritePGM(char * sFileName, Npp8u * pDst_Host, int nWidth, int nHeight, int nMaxGray)
+WritePGM(char * sFileName, thrust::host_vector<Npp8u> pDst_Host, int nWidth, int nHeight, int nMaxGray)
 {
 	FILE * fOutput = fopen(sFileName, "w+");
 	if (fOutput == 0)
@@ -84,8 +133,10 @@ WritePGM(char * sFileName, Npp8u * pDst_Host, int nWidth, int nHeight, int nMaxG
 	}
 	char * aComment = "# Created by NPP";
 	fprintf(fOutput, "P5\n%s\n%d %d\n%d\n", aComment, nWidth, nHeight, nMaxGray);
-	for (int i = 0; i < nHeight; ++i)
-		for (int j = 0; j < nWidth; ++j)
-			fputc(pDst_Host[i*nWidth + j], fOutput);
+	for (thrust::host_vector<Npp8u>::iterator i = pDst_Host.begin(); i != pDst_Host.end(); i++)
+	{
+		fputc(*i, fOutput);
+	}
+			
 	fclose(fOutput);
 }
