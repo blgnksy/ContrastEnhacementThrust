@@ -56,15 +56,11 @@ LoadPGM(char * sFileName, int & nWidth, int & nHeight, int & nMaxGray)
 	std::cout << "\tMax value: " << nMaxGray << std::endl;
 	while (getc(fInput) != '\n');
 	// Following lines: data
-	thrust::host_vector<Npp8u> pSrc_Host(nWidth * nHeight);
+	thrust::host_vector<Npp8u> pSrc_Host(0);
 	for (int i = 0; i < nHeight; ++i)
 		for (int j = 0; j < nWidth; ++j)
 		{
 			pSrc_Host.push_back(fgetc(fInput));
-			if (i < 5 && j < 5)
-			{
-				std::cout << fgetc(fInput) << std::endl;
-			}
 		}
 
 	for (thrust::host_vector<Npp8u>::iterator i = pSrc_Host.begin(); i != pSrc_Host.begin()+25 ; i++)
