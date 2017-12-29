@@ -6,10 +6,10 @@
 
 struct muldiv_functor
 {
-	float a;
+	unsigned int a;
 
-	muldiv_functor(int nConstant, int nNormalizer) { 
-		a = nConstant / nNormalizer; 
+	muldiv_functor(unsigned int nConstant, unsigned int nNormalizer) {
+		a = round(nConstant / nNormalizer); 
 	}
 
 	__host__ __device__
@@ -30,7 +30,8 @@ WritePGM(char * sFileName, thrust::host_vector<Npp8u> pDst_Host, int nWidth, int
 int main()
 {
 	thrust::host_vector<Npp8u> pSrc_Host;
-	int   nWidth, nHeight, nMaxGray, nNormalizer;
+	int   nWidth, nHeight, nMaxGray;
+	unsigned int nNormalizer;
 	std::cout << "THRUST VERSION" << std::endl;
 
 	// Load image to the host.
@@ -63,7 +64,7 @@ int main()
 		nScaleFactor++;
 		nPower *= 2;
 	}
-	Npp8u nConstant = static_cast<Npp8u>(255.0f / (nMax - nMin) * (nPower / 2));
+	unsigned int nConstant = 255.0f / (nMax - nMin) * (nPower / 2);
 	
 	nNormalizer = pow(2, (nScaleFactor - 1));
 	
@@ -78,7 +79,7 @@ int main()
 	// Output the result image.
 	thrust::host_vector<Npp8u> pDst_Host=pDst_Dev;
 	std::cout << "Output the PGM file." << std::endl;
-	WritePGM("lena_after_GPUs.pgm", pDst_Host, nWidth, nHeight, nMaxGray);
+	WritePGM("lena_after_GPU_Thrust.pgm", pDst_Host, nWidth, nHeight, nMaxGray);
 	getchar();
     return 0;
 }
@@ -125,7 +126,7 @@ LoadPGM(char * sFileName, int & nWidth, int & nHeight, int & nMaxGray)
 void
 WritePGM(char * sFileName, thrust::host_vector<Npp8u> pDst_Host, int nWidth, int nHeight, int nMaxGray)
 {
-	FILE * fOutput = fopen(sFileName, "w+");
+	FILE * fOutput = fopen(sFileName, "wb");
 	if (fOutput == 0)
 	{
 		perror("Cannot open file to read");
