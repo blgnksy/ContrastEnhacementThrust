@@ -3,6 +3,7 @@
 #include <thrust\device_vector.h>
 #include <npp.h>
 #include <stdio.h>
+#include <windows.h>
 
 struct muldiv_functor
 {
@@ -19,7 +20,27 @@ struct muldiv_functor
 	}
 };
 
-//https://github.com/thrust/thrust/wiki/Quick-Start-Guide
+double PCFreq = 0.0;
+__int64 CounterStart = 0;
+
+void StartCounter()
+{
+	LARGE_INTEGER li;
+	if (!QueryPerformanceFrequency(&li))
+		std::cout << "QueryPerformanceFrequency failed!\n";
+
+	PCFreq = double(li.QuadPart) / 1000.0;
+
+	QueryPerformanceCounter(&li);
+	CounterStart = li.QuadPart;
+}
+double GetCounter()
+{
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	return double(li.QuadPart - CounterStart) / PCFreq;
+}
+
 // Function Protypes.
 thrust::host_vector<Npp8u>
 LoadPGM(char * sFileName, int & nWidth, int & nHeight, int & nMaxGray);
@@ -37,18 +58,25 @@ int main()
 	// Load image to the host.
 	std::cout << "Load PGM file." << std::endl;
 	pSrc_Host = LoadPGM("lena_before.pgm", nWidth, nHeight, nMaxGray);
-
+	StartCounter();
 	thrust::device_vector<Npp8u> pDst_Dev = pSrc_Host;
-	//Finding Minimum
-	int nMin = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(),257, thrust::minimum<int>());
+	std::cout << "Host to Device Memory Copy Duration : " <<GetCounter() << " seconds." << std::endl;
 	
+	//Finding Minimum
+	StartCounter();
+	int nMin = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(),257, thrust::minimum<int>());
+	std::cout << "Finding Minimum Execution Time : " << GetCounter() << " seconds." << std::endl;
+
 	//Finding Maximum
+	StartCounter();
 	int nMax = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(), 0, thrust::maximum<int>());
+	std::cout << "Finding Maximum Execution Time : " << GetCounter() << " seconds." << std::endl;
 	printf("The minimum value is %d, and the maximum value is %d.\n", nMin, nMax);
 
 	std::cout << "Subracting the minimum value." << std::endl;
+	StartCounter();
 	thrust::for_each(pDst_Dev.begin(), pDst_Dev.end(), thrust::placeholders::_1 -= nMin);
-
+	std::cout << "Subraction Execution Time : " << GetCounter() << " seconds." << std::endl;
 	/*for (thrust::device_vector<Npp8u>::iterator  i = pDst_Dev.begin(); i!= pDst_Dev.end(); i++)
 	{
 		*i -= nMin;
@@ -69,15 +97,19 @@ int main()
 	nNormalizer = pow(2, (nScaleFactor - 1));
 	
 	std::cout << "Multiplying by the constant, and dividing by normalizer." << std::endl;
+	StartCounter();
 	thrust::transform(pDst_Dev.begin(), pDst_Dev.end(), pDst_Dev.begin(), muldiv_functor(nConstant, nNormalizer));
-
+	std::cout << "Multiplication Execution Time : " << GetCounter() << " seconds." << std::endl;
 	/*for (thrust::device_vector<Npp8u>::iterator i = pDst_Dev.begin(); i != pDst_Dev.end(); i++)
 	{
 		*i = static_cast<Npp8u>(*i * (nConstant/nNormalizer));
 	}*/
 	std::cout << "Multiplication, and division finished." << std::endl;
 	// Output the result image.
+	StartCounter();
 	thrust::host_vector<Npp8u> pDst_Host=pDst_Dev;
+	std::cout << "Device to Host Copy Duration : " << GetCounter() << " seconds." << std::endl;
+
 	std::cout << "Output the PGM file." << std::endl;
 	WritePGM("lena_after_GPU_Thrust.pgm", pDst_Host, nWidth, nHeight, nMaxGray);
 	getchar();
