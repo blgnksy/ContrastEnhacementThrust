@@ -7,7 +7,7 @@
 \documentclass[11pt]{article} % use larger type; default would be 10pt
 
 \usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
-
+\usepackage[american]{babel}
 %%% Examples of Article customizations
 % These packages are optional, depending whether you want the features they provide.
 % See the LaTeX Companion or other references for full information.
@@ -39,13 +39,15 @@
 \newcommand{\crefrangeconjunction}{ to~}
 % These packages are all incorporated in the memoir class to one degree or another...
 % for code samples package listings
-\lstset{frame=tb,
+\lstset{language=C,
+  frame=single,
   breaklines=true,
   basicstyle=\ttfamily,
   keywordstyle=\color{blue}\ttfamily,
   stringstyle=\color{red}\ttfamily,
   commentstyle=\color{green}\ttfamily,
-  morecomment=[l][\color{magenta}]{\#}
+  morecomment=[l][\color{magenta}]{\#},
+  morekeywords={Npp8u,__host__,__device__,thrust,reduce,for_each,transform,minimum,maximum,placeholders}
 }
 
 %%% HEADERS & FOOTERS
@@ -87,6 +89,7 @@
 		\huge{\bfseries Contrast Enhancement} \\
 		\huge{\bfseries Using Thrust Library} \\
 		[1mm]
+		\includegraphics[width=4cm]{./Figures/Thrust.jpg}
 		\line(10,0){400}\\
 		[1 cm]
 		\textsc{\LARGE Bilgin Aksoy}\\
@@ -107,102 +110,116 @@
 \setcounter{page}{1}
 
 \section{Problem Definition }
-	\justifying During the assignment, the contrast enhancement algorithm were developed using the THRUST libary.
+	\justifying During the assignment, the contrast enhancement algorithm were developed using the THRUST library.
+	\begin{itemize}
+		\item Finding the minimum valued pixel. $(nMin)$
+		\item Finding the maximum valued pixel. $(nMax)$
+		\item Applying the following operation(Equ-\ref{equ:ce}) to all pixels $(i,j)$ of the source $(pSrc)$ and write to the destination $(pDst)$.
+		\begin{equation}
+		\label{equ:ce}
+		pDst(i,j)=\frac {pSrc(i,j)-nMin}{nMax-nMin}\times 255
+		\end{equation}
+	\end{itemize}
 \section{Algorithm Desciption}
-	\justifying I implemented 3 function(for CPU version) and 4 kernel(for GPUversion). \\
-	\subsection{GPU Algorithm}
-		\justifying I used 4 Thrust function to be able to find the expected outcome:
-		\subsubsection{Finding Minimum} fsdfsdf 
-		\subsubsection{Finding Maximum} fsdfsdf 	
-		\subsubsection{Subtract Minimum} dasdasd. 
-		\subsubsection{Multiply}  dasdsdsda. 
+	\justifying I used 4 Thrust function to be able to find the expected outcome:
+	\subsubsection{Finding Minimum-Maximum} Thrust library provides reduction algorithm. I used the reduce function to find the minimum and the maximum.(Listing-\ref{lst:minmax})  I realized that the reduction module is also run the kernel two times, when I used the NSight Performance Analysis tool. In the previous implementation (for Assignment-II) I also used the each kernel two times.
+		\begin{lstlisting}[caption={Functor},label={lst:minmax}]
+int nMin = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(),257, thrust::minimum<int>());
+int nMax = thrust::reduce(pDst_Dev.begin(), pDst_Dev.end(), 0, thrust::maximum<int>());
+		\end{lstlisting}
+\hfill
+	\subsubsection{Subtract The Minimum} I used the Thrust iterator algorithm to subtract the minimum value from the input.(Listing-\ref{lst:subtract})
+		\begin{lstlisting}[caption={Functor},label={lst:subtract}]
+thrust::for_each(pDst_Dev.begin(), pDst_Dev.end(), thrust::placeholders::_1 -= nMin);
+		\end{lstlisting}
+		\hfill	
+	\subsubsection{Multiplication-Division}  I used the Thrust transform module and send each pixel to a functor(Listing-\ref{lst:muldiv}). This functor calculates the multiplication and division operations.
+		\begin{lstlisting}[caption={Functor},label={lst:muldiv}]
+struct muldiv_functor
+{
+	unsigned int a;
+
+	muldiv_functor(unsigned int nConstant, unsigned int nNormalizer) {
+		a = round(nConstant / nNormalizer); 
+	}
+
+	__host__ __device__
+	Npp8u operator()(const Npp8u& x) const
+	{
+	return a*x ;
+	}
+};
+		\end{lstlisting}
+		\hfill
 \section{Benchmarking}
 
-	\justifying  sdasda \\
+	\justifying  The algorithm implemented on CPU is still faster (Table-1) than both the algorithm using NPP Library, GPU implementation(for Assignment-II), and new implementation (for Assignment-III) several times. One of the main bottleneck in parallel programming is memory copies between host and
+	device. Table-2 shows the durations for copying the data. I compared the results of previous implementation(for Assignment-II), and new implementation. The input and results can be seen on \Cref{fig:before,fig:GPU,fig:Thrust}.  The output is visually good.   \\
 	
-	\begin{table}[H] % H stands for here not anywhere else	
+	\begin{table}[H] % H stands for here not anywhere else
+		\centering		
 		\caption[The Time-Consuming Of The Three Algorithms]{ The Time-Consuming Of The Three Algorithms }
 		\label{tab:table_1}	
 		\begin{tabular}{l c c c}
-			Algorithm & Minimum ($\mu s$) & Maximum ($\mu s$) & Average Time ($\mu s$) \\ \hline\hline 
-			CPU &	15,3902	&	23,0447	&	19,01675 \\ \hline
-			GPU & 	654,743	&	779,464	&	703,4921\\ \hline
-			NPP & 	784,412	&	888,618	&	833,2274   \\  \hline
+			Algorithm & Minimum ($\mu s$) & Maximum ($\mu s$) & Average Time ($\mu s$) \\ \hline
+			CPU &	15,3902	&	23,0447	&	19,01675	 \\ 
+			GPU & 	654,743	&	779,464	&	703,4921	\\ 
+			NPP & 	784,412	&	888,618	&	833,2274   \\  
+			Thrust&	1110,455&	1121,249&	6893,76 	\\ 
 		\end{tabular}
-		\centering	
-
 	\end{table}
-
+\hfill
 	% Table generated by Excel2LaTeX from sheet 'Worksheet1'
 	\begin{table}[htbp]
 		\centering
 		\caption{Time Consuming-Memory Copy}
 		\label{tab:table_2}%		
 		\begin{tabular}{llc c}
-			Source & Destination & \multicolumn{1}{l}{Duration ($\mu s$)} & \multicolumn{1}{l}{Size (bytes)} \\\hline \hline 
-			HostUnpinned & Device & 21251 & 262144 \\ \hline
-			Device & HostUnpinned & 1121  & 512 \\\hline
-			Device & HostUnpinned & 576   & 512 \\\hline
-			Device & HostUnpinned & 20067 & 262144 \\\hline
+			Source & Destination & \multicolumn{1}{l}{Duration ($\mu s$)} & \multicolumn{1}{l}{Size (bytes)} \\\hline  
+			HostUnpinned & Device & 21123 & 262144 \\  	
+			Device & HostUnpinned & 800  & 4 \\
+			Device & HostUnpinned & 832   & 4 \\
+			Device & HostUnpinned & 20483 & 262144 \\
 		\end{tabular}%
 	\end{table}%
-
-	% Table generated by Excel2LaTeX from sheet 'Worksheet1'
-	\begin{table}[htbp]
-		\centering		
-		\caption{Kernel Execution Time and Achieved Occupancy}
-		\label{tab:table_3}%
-		\begin{tabular}{lcc}
-			Function Name & Duration ($\mu s$) & Achieved Occupancy \\ \hline \hline 
-			MinimumKernel & 73,824 & 0,69 \\ \hline
-			MaximumKernel & 74,656 & 0,69 \\ \hline
-			MinimumKernel & 13,152 & 0,01 \\ \hline
-			MaximumKernel & 12,96 & 0,01 \\ \hline
-			SubtractKernel & 22,464 & 0,78 \\ \hline
-			MultiplyKernel & 73,696 & 0,82 \\ \hline
-		\end{tabular}%
-		\caption{Kernel Execution Time and Achieved Occupancy}
-		\label{tab:table_3}%
-	\end{table}%
+\hfill
 	\begin{figure}
 		\centering
-		%\subfloat[\label{fig:before}Before Enhancement]{\includegraphics[scale=0.35]{./Figures/lena_before.png}}
+		\subfloat[\label{fig:before}Before Enhancement]{\includegraphics[scale=0.35]{./Figures/lena_before.png}}
 		\hfill
-		%\subfloat[\label{fig:CPU}CPU Result]{\includegraphics[scale=0.35]{./Figures/lena_afterCPU3.png}}
+		\subfloat[\label{fig:GPU}GPU Result]{\includegraphics[scale=0.35]{./Figures/lena_after_GPUs.png}}
 		\hfill
-		%\subfloat[\label{fig:GPU}GPU Result]{\includegraphics[scale=0.35]{./Figures/lena_after_GPUs.png}}
-		\caption{Input \ref{fig:before}, CPU Result-\ref{fig:CPU}, and GPU Result \ref{fig:GPU} }
+		\subfloat[\label{fig:Thrust}Thrust Result]{\includegraphics[scale=0.35]{./Figures/lena_after_GPU_Thrust.png}}
+		\caption{Input \ref{fig:before}, GPU Result \ref{fig:GPU}, and Thrust Result \ref{fig:Thrust} }
 	\end{figure}
 	
-\section{Pros-Cons of Solution }
-	\justifying The algorithm uses the device efficiently. But using minimum and maximum kernel second time is the main cons of the solution.
+\section{Pros-Cons of Solution}
+	\justifying Using Thrust library solves many problems about CUDA programming. One doesn't manually manage memory allocations, copy operations, kernel execution parameters etc., and  can easily implement an parallel algorithm.  \\
+	
 \section{Discussion}
-	\justifying The one of the main reasons for CPU algorithm is faster than GPU is copy operation. The other reason is the input size is small.\\
+	\justifying The one of the main reasons for CPU algorithm is faster than GPU is copy operation from host to device. Another reason is the input size is very small, thinking the device capabilities. My CUDA device has 1920 cores, many of which didn't used at all. Using Thrust library is very easy.  But I couldn't be so comfortable when thinking Thrust library like a black-box. Especially, the kernel execution parameters \\
+	
 \section{Environment}
 	% Table generated by Excel2LaTeX from sheet 'Worksheet1'
-	\begin{table}[htbp]
+	\begin{table}[!htbp]
 		\centering
-		\caption{Add caption}		
+		\caption{Environment}		
 		\label{tab:addlabel}%
 		\begin{tabular}{ll}
-			Properties & Specifications \\\hline \hline 
-			GPU Name & GeForce GTX 1070 \\ \hline 
-			Driver Type & WDDM \\ \hline 
-			PCI Bandwidth (GB/s) & 15,754 \\ \hline 
-			Frame Buffer Physical Size (MiB) & 8192 \\ \hline 
-			Frame Buffer Bus Width (bits) & 256 \\ \hline 
-			RAM Type & GDDR5 \\ \hline 
-			Frame Buffer Bandwidth (GB/s) & 256,256 \\ \hline 
-			Graphics Clock (MHz) & 1746,5 \\ \hline 
-			Processor Clock (MHz) & 1746,5 \\ \hline 
-			Memory Clock (MHz) & 4004 \\ \hline 
-			SM Count & 15 \\ \hline 
-			CUDA Cores & 1920 \\ \hline 
+			Properties & Specifications \\\hline  
+			GPU Name & GeForce GTX 1070 \\  
+			Driver Type & WDDM \\  
+			PCI Bandwidth (GB/s) & 15,754 \\  
+			Frame Buffer Physical Size (MiB) & 8192 \\  
+			Frame Buffer Bus Width (bits) & 256 \\  
+			RAM Type & GDDR5 \\  
+			Frame Buffer Bandwidth (GB/s) & 256,256 \\  
+			Graphics Clock (MHz) & 1746,5 \\  
+			Processor Clock (MHz) & 1746,5 \\  
+			Memory Clock (MHz) & 4004 \\  
+			SM Count & 15 \\  
+			CUDA Cores & 1920 \\  
 		\end{tabular}%
-
 	\end{table}%
-		
-%\bibliography{./ref.bib}
-%\bibliographystyle{ieeetr}
 
 \end{document}

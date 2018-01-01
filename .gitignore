@@ -290,3 +290,9 @@ __pycache__/
 # Assignment
 Assignment_3.pdf
 Lecture 10_ThrustLibrary.pdf
+
+#Outputs
+*.png
+*.jpg
+*.bmp
+*.pgm
