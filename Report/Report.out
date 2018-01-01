@@ -1,0 +1,11 @@
+\BOOKMARK [1][-]{section.1}{Problem Definition }{}% 1
+\BOOKMARK [1][-]{section.2}{Algorithm Desciption}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{GPU Algorithm}{section.2}% 3
+\BOOKMARK [3][-]{subsubsection.2.1.1}{Finding Minimum}{subsection.2.1}% 4
+\BOOKMARK [3][-]{subsubsection.2.1.2}{Finding Maximum}{subsection.2.1}% 5
+\BOOKMARK [3][-]{subsubsection.2.1.3}{Subtract Minimum}{subsection.2.1}% 6
+\BOOKMARK [3][-]{subsubsection.2.1.4}{Multiply}{subsection.2.1}% 7
+\BOOKMARK [1][-]{section.3}{Benchmarking}{}% 8
+\BOOKMARK [1][-]{section.4}{Pros-Cons of Solution }{}% 9
+\BOOKMARK [1][-]{section.5}{Discussion}{}% 10
+\BOOKMARK [1][-]{section.6}{Environment}{}% 11

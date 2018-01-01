@@ -77,10 +77,6 @@ int main()
 	StartCounter();
 	thrust::for_each(pDst_Dev.begin(), pDst_Dev.end(), thrust::placeholders::_1 -= nMin);
 	std::cout << "Subraction Execution Time : " << GetCounter() << " seconds." << std::endl;
-	/*for (thrust::device_vector<Npp8u>::iterator  i = pDst_Dev.begin(); i!= pDst_Dev.end(); i++)
-	{
-		*i -= nMin;
-	}*/
 	std::cout << "Subraction finished." << std::endl;
 
 	// Compute the optimal nConstant and nScaleFactor for integer operation see GTC 2013 Lab NPP.pptx for explanation
@@ -100,11 +96,8 @@ int main()
 	StartCounter();
 	thrust::transform(pDst_Dev.begin(), pDst_Dev.end(), pDst_Dev.begin(), muldiv_functor(nConstant, nNormalizer));
 	std::cout << "Multiplication Execution Time : " << GetCounter() << " seconds." << std::endl;
-	/*for (thrust::device_vector<Npp8u>::iterator i = pDst_Dev.begin(); i != pDst_Dev.end(); i++)
-	{
-		*i = static_cast<Npp8u>(*i * (nConstant/nNormalizer));
-	}*/
 	std::cout << "Multiplication, and division finished." << std::endl;
+
 	// Output the result image.
 	StartCounter();
 	thrust::host_vector<Npp8u> pDst_Host=pDst_Dev;
